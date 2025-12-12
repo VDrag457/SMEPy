@@ -182,7 +182,6 @@ class StructCase:
 
 # Structure Mapping Engine
 
-# Structure Mapping Engine
 class Match:
     def __init__(self, base, target, score=0.0):
         self.base, self.target, self.score = base, target, score
@@ -357,7 +356,6 @@ def topological_sort(graph_dict):
 
 # PDDL Parser
 
-# PDDL Parser
 class PDDLParser:
     def __init__(self, pddl_string):
         self.pddl_string, self.domain_name, self.predicates, self.actions = pddl_string, None, [], []
@@ -409,7 +407,6 @@ class PDDLParser:
 
 # PDDL to MELD Converter
 
-# PDDL to MELD Converter
 class PDDLToMeld:
     def __init__(self, pddl_parser):
         self.parser, self.meld_facts = pddl_parser, []
@@ -444,7 +441,6 @@ class PDDLToMeld:
 
 # Main API
 
-# Main API
 def calculate_similarity(pddl_string1, pddl_string2):
     """Calculate similarity score between two PDDL domain strings.
     Args: pddl_string1, pddl_string2 - PDDL domain strings
