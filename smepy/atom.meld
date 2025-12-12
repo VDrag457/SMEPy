@@ -1,7 +1,0 @@
-(in-microtheory atomMt)
-(revolves electron nucleus)
-(attracts nucleus electron)
-(mass-greater nucleus electron)
-(cause (attracts nucleus electron) (revolves electron nucleus))
-(spherical nucleus)
-(spherical electron)
