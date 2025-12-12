@@ -490,7 +490,6 @@ if __name__ == "__main__":
         print(f"  0.0 - 0.5  : Low similarity (few structural matches)")
         print(f"  0.5 - 2.0  : Moderate similarity (some shared structure)")
         print(f"  2.0+       : High similarity (many structural correspondences)")
-        print(f"  Note: Scores have no upper limit and depend on domain complexity")
     except FileNotFoundError as e:
         print(f"Error: {e}")
         sys.exit(1)
