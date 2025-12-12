@@ -204,150 +204,94 @@ class Match:
 
 class Mapping:
     def __init__(self, matches=None):
-        self.base_to_target = {}
-        self.target_to_base = {}
-        self.matches = set()
-        self.score = 0.0
+        self.base_to_target, self.target_to_base, self.matches, self.score = {}, {}, set(), 0.0
         if matches:
             self.add_all(matches)
-
     def get_mapped_base(self, base):
         return self.base_to_target.get(base, None)
-
     def get_mapped_target(self, target):
         return self.target_to_base.get(target, None)
-
     def is_consistent_with(self, match):
-        base = match.base
-        target = match.target
+        base, target = match.base, match.target
         corresponding_target = self.get_mapped_base(base)
         corresponding_base = self.get_mapped_target(target)
         is_base_consistent = (not corresponding_target) or (corresponding_target == target)
         is_target_consistent = (not corresponding_base) or (corresponding_base == base)
         return is_base_consistent and is_target_consistent
-        
     def mutual_consistent(self, mapping):
-        for match in mapping.matches:
-            if not self.is_consistent_with(match):
-                return False
-        return True 
-    
+        return all(self.is_consistent_with(match) for match in mapping.matches)
     def add(self, match, check_consistency=True):
         if match in self.matches:
-            return 
-        elif (not check_consistency) or self.is_consistent_with(match):
-            base = match.base
-            target = match.target
-            self.base_to_target[base] = target
-            self.target_to_base[target] = base
+            return
+        if (not check_consistency) or self.is_consistent_with(match):
+            self.base_to_target[match.base] = match.target
+            self.target_to_base[match.target] = match.base
             self.matches.add(match)
         else:
             raise ValueError(f'Mapping is not consistent with {match}')
-
     def add_all(self, matches, check_consistency=True):
         for match in matches:
             self.add(match, check_consistency)
-
     def merge(self, mapping):
-        self.add_all(mapping.matches, check_consistency=False) 
-
+        self.add_all(mapping.matches, check_consistency=False)
     def evaluate(self):
-        self.score = 0.0
-        for match in self.matches:
-            self.score += match.score
+        self.score = sum(match.score for match in self.matches)
         return self.score
-
     def copy(self):
         new_mapping = Mapping(self.matches)
         new_mapping.score = self.score
         return new_mapping
-
     def __str__(self):
-        entity_matches = []
-        expression_matches = []
+        entity_matches, expression_matches = [], []
         for match in self.matches:
-            if isinstance(match.base, Expression):
-                expression_matches.append(match)
-            elif isinstance(match.base, Entity):
-                entity_matches.append(match)
-        expression_matches_str = ',\n'.join(map(repr, expression_matches))
-        entity_matches_str = ', '.join(map(repr, entity_matches))
-        return 'expression mappings:\n' + expression_matches_str + '\n' + 'entity mappings:\n' + entity_matches_str
+            (expression_matches if isinstance(match.base, Expression) else entity_matches).append(match)
+        return 'expression mappings:\n' + ',\n'.join(map(repr, expression_matches)) + '\n' + 'entity mappings:\n' + ', '.join(map(repr, entity_matches))
 
 class SME:
-    """The main class that holds all the information of a structure mapping process."""
     def __init__(self, base, target):
-        self.base = base
-        self.target = target
-
+        self.base, self.target = base, target
     def match(self):
         matches = create_all_possible_matches(self.base, self.target)
         connect_matches(matches)
         valid_matches = consistency_propagation(matches)
         structural_evaluation(valid_matches)
         kernel_mappings = find_kernel_mappings(valid_matches)
-        global_mappings = greedy_merge(kernel_mappings)
-        return global_mappings
+        return greedy_merge(kernel_mappings)
 
 def predicate_match_score(pred_1, pred_2):
-    if pred_1.predicate_type == 'relation':
-        if pred_1.name == pred_2.name:
-            return 0.005
-    elif pred_1.predicate_type == 'function':
-        return 0.002
-    else:
-        return 0.0
+    if pred_1.predicate_type == 'relation' and pred_1.name == pred_2.name:
+        return 0.005
+    return 0.002 if pred_1.predicate_type == 'function' else 0.0
 
 def are_predicates_matchable(pred_1, pred_2):
     if pred_1.predicate_type != pred_2.predicate_type:
         return False
-    elif pred_1.predicate_type == 'relation':
-        return pred_1.name == pred_2.name
-    else:
-        return True
+    return pred_1.name == pred_2.name if pred_1.predicate_type == 'relation' else True
 
 def are_matchable(item_1, item_2):
-    is_exp_1 = isinstance(item_1, Expression)
-    is_exp_2 = isinstance(item_2, Expression)
+    is_exp_1, is_exp_2 = isinstance(item_1, Expression), isinstance(item_2, Expression)
     if is_exp_1 and is_exp_2:
         return are_predicates_matchable(item_1.predicate, item_2.predicate)
-    elif (not is_exp_1) and (not is_exp_2):
-        return True
-    else:
-        return False
+    return (not is_exp_1) and (not is_exp_2)
 
 def create_all_possible_matches(case_1, case_2):
-    exp_list_1 = case_1.expression_list
-    exp_list_2 = case_2.expression_list
     matches = set()
-    for exp_1 in exp_list_1:
-        for exp_2 in exp_list_2:
-            new_matches = match_expression(exp_1, exp_2)
-            matches = set.union(matches, new_matches)
+    for exp_1 in case_1.expression_list:
+        for exp_2 in case_2.expression_list:
+            matches = set.union(matches, match_expression(exp_1, exp_2))
     return list(matches)
-    
+
 def match_expression(exp_1, exp_2):
-    pred_1 = exp_1.predicate
-    pred_2 = exp_2.predicate
-    args_1 = exp_1.args
-    args_2 = exp_2.args
-    pair_list = [(exp_1, exp_2)] + list(zip(args_1, args_2))
+    pair_list = [(exp_1, exp_2)] + list(zip(exp_1.args, exp_2.args))
     if all([are_matchable(pair[0], pair[1]) for pair in pair_list]):
-        match_list = [Match(pair[0], pair[1]) for pair in pair_list]
-        return set(match_list)
-    else:
-        return set()
+        return set([Match(pair[0], pair[1]) for pair in pair_list])
+    return set()
 
 def connect_matches(matches):
-    match_dict = {}
+    match_dict = {(match.base, match.target): match for match in matches}
     for match in matches:
-        match_dict[(match.base, match.target)] = match
-    for match in matches:
-        base = match.base
-        target = match.target
-        if isinstance(base, Expression):
-            arg_pair_list = list(zip(base.args, target.args))
-            for arg_pair in arg_pair_list:
+        if isinstance(match.base, Expression):
+            for arg_pair in list(zip(match.base.args, match.target.args)):
                 if arg_pair in match_dict:
                     child_match = match_dict[arg_pair]
                     child_match.add_parent(match)
@@ -356,9 +300,8 @@ def connect_matches(matches):
                     match.is_incomplete = True
 
 def consistency_propagation(matches):
-    match_graph = dict([(match, match.children) for match in matches])
+    match_graph = {match: match.children for match in matches}
     ordered_from_leaves_matches = topological_sort(match_graph)
-    
     for match in ordered_from_leaves_matches:
         match.mapping = Mapping([match])
         for child in match.children:
@@ -367,65 +310,43 @@ def consistency_propagation(matches):
             else:
                 match.is_inconsistent = True
                 break
-    valid_matches = [match for match in matches if (not (match.is_incomplete or match.is_inconsistent))]
-    return valid_matches
+    return [match for match in matches if not (match.is_incomplete or match.is_inconsistent)]
 
 def structural_evaluation(matches, trickle_down_factor=16):
     for match in matches:
         match.local_evaluation()
-    ordered_from_root_matches = matches[::-1]
-
-    for match in ordered_from_root_matches:
+    for match in matches[::-1]:
         for child in match.children:
-            child.score += match.score * trickle_down_factor
-            if child.score > 1.0:
-                child.score = 1.0
-    
-    for match in ordered_from_root_matches:
+            child.score = min(child.score + match.score * trickle_down_factor, 1.0)
+    for match in matches[::-1]:
         match.mapping.evaluate()
-
     return matches
 
 def find_kernel_mappings(valid_matches):
-    root_matches = []
-    for match in valid_matches:
-        are_parents_valid = [not (parent in valid_matches) for parent in match.parents]
-        if all(are_parents_valid):
-            root_matches.append(match)
+    root_matches = [match for match in valid_matches if all([parent not in valid_matches for parent in match.parents])]
     return [match.mapping.copy() for match in root_matches]
 
 def greedy_merge(kernel_mappings):
-    sorted_k_mapping_list = sorted(kernel_mappings, key=(lambda mapping: mapping.score), reverse=True)
-    global_mappings = []
-    max_score = 0.0
-    while (len(global_mappings) < 3) and (len(sorted_k_mapping_list) > 0):
-        global_mapping = sorted_k_mapping_list[0]
-        sorted_k_mapping_list.remove(global_mapping)
-        
+    sorted_k_mapping_list = sorted(kernel_mappings, key=lambda m: m.score, reverse=True)
+    global_mappings, max_score = [], 0.0
+    while len(global_mappings) < 3 and sorted_k_mapping_list:
+        global_mapping = sorted_k_mapping_list.pop(0)
         for kernel_mapping in sorted_k_mapping_list[:]:
             if global_mapping.mutual_consistent(kernel_mapping):
                 global_mapping.merge(kernel_mapping)
                 sorted_k_mapping_list.remove(kernel_mapping)
-        
         score = global_mapping.evaluate()
         if score <= 0.8 * max_score:
             break
-        elif score > max_score:
-            max_score = score
+        max_score = max(score, max_score)
         global_mappings.append(global_mapping)
-    
-    global_mappings.sort(key=lambda mapping: mapping.score, reverse=True)
-    return global_mappings
+    return sorted(global_mappings, key=lambda m: m.score, reverse=True)
 
 def topological_sort(graph_dict):
-    """Input: graph represented as {node: [next_node_1, next_node_2], ...}"""
-    sorted_list = []
-    sorted_set = set()
-    new_graph_dict = graph_dict.copy()
+    sorted_list, sorted_set, new_graph_dict = [], set(), graph_dict.copy()
     while new_graph_dict:
         for node in new_graph_dict:
-            next_node_list = new_graph_dict[node]
-            if all([(next_node in sorted_set) for next_node in next_node_list]):
+            if all([next_node in sorted_set for next_node in new_graph_dict[node]]):
                 sorted_list.append(node)
                 sorted_set.add(node)
                 del new_graph_dict[node]
@@ -434,99 +355,50 @@ def topological_sort(graph_dict):
             raise ValueError('Cyclic graph!')
     return sorted_list
 
-# ============================================================================
-# PDDL Parser (from pddl_parser.py)
-# ============================================================================
+# PDDL Parser
 
+# PDDL Parser
 class PDDLParser:
-    """Simple PDDL parser for domain strings."""
-    
     def __init__(self, pddl_string):
-        self.pddl_string = pddl_string
-        self.domain_name = None
-        self.predicates = []
-        self.actions = []
+        self.pddl_string, self.domain_name, self.predicates, self.actions = pddl_string, None, [], []
         self.parse()
-    
     def parse(self):
-        content = self.pddl_string
-        
-        # Remove comments
-        content = re.sub(r';.*', '', content)
-        
-        # Extract domain name
+        content = re.sub(r';.*', '', self.pddl_string)
         domain_match = re.search(r'\(domain\s+([^\)]+)\)', content, re.IGNORECASE)
         if domain_match:
             self.domain_name = domain_match.group(1).strip()
-        
-        # Extract predicates
         predicates_match = re.search(r'\(:predicates(.*?)\)\s*\)', content, re.DOTALL | re.IGNORECASE)
         if predicates_match:
-            pred_text = predicates_match.group(1)
-            self.predicates = self._extract_predicates(pred_text)
-        
-        # Extract actions
-        action_pattern = r'\(:action\s+([^\s]+)(.*?)\)\s*(?=\(:action|\Z)'
-        for match in re.finditer(action_pattern, content, re.DOTALL | re.IGNORECASE):
-            action_name = match.group(1).strip()
-            action_body = match.group(2)
-            action = self._parse_action(action_name, action_body)
-            self.actions.append(action)
-    
+            self.predicates = self._extract_predicates(predicates_match.group(1))
+        for match in re.finditer(r'\(:action\s+([^\s]+)(.*?)\)\s*(?=\(:action|\Z)', content, re.DOTALL | re.IGNORECASE):
+            self.actions.append(self._parse_action(match.group(1).strip(), match.group(2)))
     def _extract_predicates(self, text):
-        predicates = []
-        pred_pattern = r'\(([^\)]+)\)'
-        for match in re.finditer(pred_pattern, text):
-            pred = match.group(1).strip()
-            if pred:
-                predicates.append(pred)
-        return predicates
-    
+        return [match.group(1).strip() for match in re.finditer(r'\(([^\)]+)\)', text) if match.group(1).strip()]
     def _parse_action(self, name, body):
         action = {'name': name, 'parameters': [], 'preconditions': [], 'effects': []}
-        
-        # Extract parameters
         param_match = re.search(r':parameters\s*\((.*?)\)', body, re.DOTALL | re.IGNORECASE)
         if param_match:
             action['parameters'] = self._parse_parameters(param_match.group(1))
-        
-        # Extract preconditions
         precond_match = re.search(r':precondition\s*\((.*?)\)\s*:effect', body, re.DOTALL | re.IGNORECASE)
         if precond_match:
             action['preconditions'] = self._parse_conditions(precond_match.group(1))
-        
-        # Extract effects
         effect_match = re.search(r':effect\s*\((.*?)\)\s*\)', body, re.DOTALL | re.IGNORECASE)
         if effect_match:
             action['effects'] = self._parse_effects(effect_match.group(1))
-        
         return action
-    
     def _parse_parameters(self, text):
-        params = []
-        tokens = text.split()
+        params, tokens = [], text.split()
         for i, token in enumerate(tokens):
             if token.startswith('?'):
-                param_name = token
                 param_type = tokens[i+2] if i+2 < len(tokens) and tokens[i+1] == '-' else 'object'
-                params.append({'name': param_name, 'type': param_type})
+                params.append({'name': token, 'type': param_type})
         return params
-    
     def _parse_conditions(self, text):
-        conditions = []
         text = re.sub(r'^\s*and\s*', '', text, flags=re.IGNORECASE)
-        pred_pattern = r'\(([^\(\)]+)\)'
-        for match in re.finditer(pred_pattern, text):
-            pred = match.group(1).strip()
-            if pred and not pred.lower().startswith('and'):
-                conditions.append(pred)
-        return conditions
-    
+        return [match.group(1).strip() for match in re.finditer(r'\(([^\(\)]+)\)', text) if match.group(1).strip() and not match.group(1).lower().startswith('and')]
     def _parse_effects(self, text):
-        effects = []
-        text = re.sub(r'^\s*and\s*', '', text, flags=re.IGNORECASE)
-        pred_pattern = r'\((not\s+)?\(([^\)]+)\)\)|\(([^\(\)]+)\)'
-        for match in re.finditer(pred_pattern, text):
+        effects, text = [], re.sub(r'^\s*and\s*', '', text, flags=re.IGNORECASE)
+        for match in re.finditer(r'\((not\s+)?\(([^\)]+)\)\)|\(([^\(\)]+)\)', text):
             if match.group(2):
                 effects.append({'type': 'delete', 'predicate': match.group(2).strip()})
             elif match.group(3):
@@ -535,163 +407,63 @@ class PDDLParser:
                     effects.append({'type': 'add', 'predicate': pred})
         return effects
 
-# ============================================================================
-# PDDL to MELD Converter (from pddl_to_meld.py)
-# ============================================================================
+# PDDL to MELD Converter
 
+# PDDL to MELD Converter
 class PDDLToMeld:
-    """Converts PDDL domain to SME .meld format."""
-    
     def __init__(self, pddl_parser):
-        self.parser = pddl_parser
-        self.meld_facts = []
-    
+        self.parser, self.meld_facts = pddl_parser, []
     def convert(self):
-        """Convert PDDL domain to .meld facts."""
         self.meld_facts = []
-        mt_name = f"{self.parser.domain_name}Mt"
-        
         for action in self.parser.actions:
             self._convert_action(action)
-        
-        return mt_name, self.meld_facts
-    
+        return f"{self.parser.domain_name}Mt", self.meld_facts
     def _convert_action(self, action):
-        """Convert a PDDL action to SME causal relationships."""
-        action_name = action['name']
-        action_entity = f"action-{action_name}"
-        
-        for i, precond in enumerate(action['preconditions']):
-            precond_name = self._sanitize_predicate(precond)
-            self.meld_facts.append(f"({precond_name} {action_entity})")
-        
-        for i, effect in enumerate(action['effects']):
-            effect_pred = effect['predicate']
-            effect_name = self._sanitize_predicate(effect_pred)
-            self.meld_facts.append(f"({effect_name} {action_entity})")
-        
+        action_name, action_entity = action['name'], f"action-{action['name']}"
+        for precond in action['preconditions']:
+            self.meld_facts.append(f"({self._sanitize_predicate(precond)} {action_entity})")
+        for effect in action['effects']:
+            self.meld_facts.append(f"({self._sanitize_predicate(effect['predicate'])} {action_entity})")
         if action['preconditions'] and action['effects']:
             precond_compound = f"preconditions-{action_name}"
-            for i, precond in enumerate(action['preconditions']):
-                precond_name = self._sanitize_predicate(precond)
-                self.meld_facts.append(f"(has-precond {precond_compound} {precond_name})")
-            
+            for precond in action['preconditions']:
+                self.meld_facts.append(f"(has-precond {precond_compound} {self._sanitize_predicate(precond)})")
             effect_compound = f"effects-{action_name}"
-            for i, effect in enumerate(action['effects']):
-                effect_name = self._sanitize_predicate(effect['predicate'])
-                self.meld_facts.append(f"(has-effect {effect_compound} {effect_name})")
-            
+            for effect in action['effects']:
+                self.meld_facts.append(f"(has-effect {effect_compound} {self._sanitize_predicate(effect['predicate'])})")
             self.meld_facts.append(f"(action-type {action_entity} planning-action)")
             self.meld_facts.append(f"(cause {precond_compound} {effect_compound})")
-        
         for param in action['parameters']:
-            param_type = param['type']
-            self.meld_facts.append(f"(operates-on {action_entity} {param_type})")
-    
+            self.meld_facts.append(f"(operates-on {action_entity} {param['type']})")
     def _sanitize_predicate(self, predicate):
-        """Sanitize predicate name for SME format."""
         pred = predicate.split()[0] if ' ' in predicate else predicate
-        pred = pred.replace('?', '').replace('-', '_')
-        return pred
-    
+        return pred.replace('?', '').replace('-', '_')
     def to_meld_string(self):
-        """Convert to .meld string format."""
         mt_name, facts = self.convert()
-        meld_str = f"(in-microtheory {mt_name})\n"
-        for fact in facts:
-            meld_str += f"{fact}\n"
-        return meld_str
+        return f"(in-microtheory {mt_name})\n" + '\n'.join(facts) + '\n'
 
-# ============================================================================
-# Main API Function
-# ============================================================================
+# Main API
 
+# Main API
 def calculate_similarity(pddl_string1, pddl_string2):
+    """Calculate similarity score between two PDDL domain strings.
+    Args: pddl_string1, pddl_string2 - PDDL domain strings
+    Returns: float - Best similarity score (0.0 if no mappings found)
     """
-    Calculate similarity score between two PDDL domain strings.
-    
-    Args:
-        pddl_string1: First PDDL domain as a string
-        pddl_string2: Second PDDL domain as a string
-        
-    Returns:
-        float: Best similarity score (0.0 if no mappings found)
-        
-    Example:
-        pddl1 = "(define (domain blocksworld) ...)"
-        pddl2 = "(define (domain logistics) ...)"
-        score = calculate_similarity(pddl1, pddl2)
-        print(f"Similarity: {score:.4f}")
-    """
-    # Reset vocabulary for clean state
     global current_vocab
     current_vocab = Vocabulary()
-    
     try:
-        # Parse PDDL strings
-        parser1 = PDDLParser(pddl_string1)
-        parser2 = PDDLParser(pddl_string2)
-        
-        # Convert to .meld format
-        converter1 = PDDLToMeld(parser1)
-        converter2 = PDDLToMeld(parser2)
-        
-        meld_str1 = converter1.to_meld_string()
-        meld_str2 = converter2.to_meld_string()
-        
-        # Load into SME
+        parser1, parser2 = PDDLParser(pddl_string1), PDDLParser(pddl_string2)
+        meld_str1, meld_str2 = PDDLToMeld(parser1).to_meld_string(), PDDLToMeld(parser2).to_meld_string()
         name1, facts1 = read_meld_string(meld_str1)
-        case1 = StructCase(facts1, name1)
-        
         name2, facts2 = read_meld_string(meld_str2)
-        case2 = StructCase(facts2, name2)
-        
-        # Run structure mapping
-        sme_engine = SME(case1, case2)
-        global_mappings = sme_engine.match()
-        
-        # Return best score
-        if global_mappings:
-            return max(m.score for m in global_mappings)
-        else:
-            return 0.0
-            
+        case1, case2 = StructCase(facts1, name1), StructCase(facts2, name2)
+        global_mappings = SME(case1, case2).match()
+        return max(m.score for m in global_mappings) if global_mappings else 0.0
     except Exception as e:
         raise ValueError(f"Error calculating similarity: {e}")
 
-# ============================================================================
-# Example Usage
-# ============================================================================
-
 if __name__ == "__main__":
-    # Example usage
-    blocksworld = """
-    (define (domain blocksworld)
-      (:requirements :strips)
-      (:predicates (on ?x ?y) (ontable ?x) (clear ?x) (handempty) (holding ?x))
-      (:action pick-up
-        :parameters (?x)
-        :precondition (and (clear ?x) (ontable ?x) (handempty))
-        :effect (and (not (ontable ?x)) (not (clear ?x)) (not (handempty)) (holding ?x)))
-      (:action put-down
-        :parameters (?x)
-        :precondition (holding ?x)
-        :effect (and (not (holding ?x)) (clear ?x) (handempty) (ontable ?x))))
-    """
-    
-    logistics = """
-    (define (domain logistics)
-      (:requirements :strips)
-      (:predicates (at ?obj ?loc) (in ?pkg ?veh) (vehicle ?v) (package ?p))
-      (:action load-package
-        :parameters (?pkg ?veh ?loc)
-        :precondition (and (at ?pkg ?loc) (at ?veh ?loc))
-        :effect (and (not (at ?pkg ?loc)) (in ?pkg ?veh)))
-      (:action unload-package
-        :parameters (?pkg ?veh ?loc)
-        :precondition (and (in ?pkg ?veh) (at ?veh ?loc))
-        :effect (and (not (in ?pkg ?veh)) (at ?pkg ?loc))))
-    """
-    
-    score = calculate_similarity(blocksworld, logistics)
-    print(f"Similarity Score: {score:.4f}")
+    blocksworld = "(define (domain blocksworld) (:requirements :strips) (:predicates (on ?x ?y) (ontable ?x) (clear ?x) (handempty) (holding ?x)) (:action pick-up :parameters (?x) :precondition (and (clear ?x) (ontable ?x) (handempty)) :effect (and (not (ontable ?x)) (not (clear ?x)) (not (handempty)) (holding ?x))) (:action put-down :parameters (?x) :precondition (holding ?x) :effect (and (not (holding ?x)) (clear ?x) (handempty) (ontable ?x))))"
+    logistics = "(define (domain logistics) (:requirements :strips) (:predicates (at ?obj ?loc) (in ?pkg ?veh) (vehicle ?v) (package ?p)) (:action load-package :parameters (?pkg ?veh ?loc) :precondition (and (at ?pkg ?loc) (at ?veh ?loc)) :effect (and (not (at ?pkg ?loc)) (in ?pkg ?veh))) (:action unload-package :parameters (?pkg ?veh ?loc) :precondition (and (in ?pkg ?veh) (at ?veh ?loc)) :effect (and (not (in ?pkg ?veh)) (at ?pkg ?loc))))"
+    print(f"Similarity Score: {calculate_similarity(blocksworld, logistics):.4f}")
