@@ -475,21 +475,21 @@ if __name__ == "__main__":
         with open(sys.argv[2], 'r') as f2:
             pddl2 = f2.read()
         score = calculate_similarity(pddl1, pddl2)
+        print(f"Similarity Score: {score:.4f}")
         
-        # Interpret the score
-        if score < 0.5:
-            interpretation = "Low similarity (few structural matches)"
-        elif score < 2.0:
-            interpretation = "Moderate similarity (some shared structure)"
-        else:
-            interpretation = "High similarity (many structural correspondences)"
+        # # Optional: Interpret the score (uncomment to use)
+        # if score < 0.5:
+        #     interpretation = "Low similarity (few structural matches)"
+        # elif score < 2.0:
+        #     interpretation = "Moderate similarity (some shared structure)"
+        # else:
+        #     interpretation = "High similarity (many structural correspondences)"
+        # print(f"Interpretation: {interpretation}")
+        # print(f"\nScore Ranges:")
+        # print(f"  0.0 - 0.5  : Low similarity (few structural matches)")
+        # print(f"  0.5 - 2.0  : Moderate similarity (some shared structure)")
+        # print(f"  2.0+       : High similarity (many structural correspondences)")
         
-        print(f"\nSimilarity Score: {score:.4f}")
-        print(f"Interpretation: {interpretation}")
-        print(f"\nScore Ranges:")
-        print(f"  0.0 - 0.5  : Low similarity (few structural matches)")
-        print(f"  0.5 - 2.0  : Moderate similarity (some shared structure)")
-        print(f"  2.0+       : High similarity (many structural correspondences)")
     except FileNotFoundError as e:
         print(f"Error: {e}")
         sys.exit(1)
