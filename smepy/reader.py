@@ -70,7 +70,7 @@ def read_meld_file(f_name):
     s_exp_list = read_s_exp_file(f_name)
     mt_list = []
     if not (s_exp_list[0][0] == 'in-microtheory'):
-        print 'Not a microtheory file!'
+        print('Not a microtheory file!')
         raise IOError
     mt_name = s_exp_list[0][1]
     mt_facts = s_exp_list[1:]

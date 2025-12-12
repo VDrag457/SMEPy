@@ -73,7 +73,7 @@ class Mapping:
             self.target_to_base[target] = base
             self.matches.add(match)
         else:
-            print 'Mapping is not consistent with', match
+            print('Mapping is not consistent with', match)
             raise ValueError
 
     def add_all(self, matches, check_consistency=True):
@@ -306,6 +306,6 @@ def topological_sort(graph_dict):
                 del new_graph_dict[node]
                 break
         else:
-            print 'Cyclic graph!'
+            print('Cyclic graph!')
             return
     return sorted_list    

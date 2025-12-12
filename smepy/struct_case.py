@@ -111,13 +111,13 @@ class Expression:
         elif create_new_pred:
             self.predicate = current_vocab.add(pred_name, num_of_args)
         else:
-            print 'Unknown predicate', pred_name
+            print('Unknown predicate', pred_name)
             raise KeyError
         if current_vocab.check_arity(pred_name, num_of_args):
             for arg in arg_list:
                 self.args.append(case.add(arg))
         else:
-            print 'Wrong arity for predicate', pred_name
+            print('Wrong arity for predicate', pred_name)
             raise ValueError
         self.weight = weight
         self.evidences = evidences
@@ -189,14 +189,14 @@ class Vocabulary:
 
     def __getitem__(self, pred_name):
         if not pred_name in self.p_dict:
-            print 'Unknown predicate', pred_name
+            print('Unknown predicate', pred_name)
             raise KeyError
         else:
             return self.p_dict[pred_name]
 
     def __delitem__(self, pred_name):
         if not pred_name in self.p_dict:
-            print 'Unknown predicate', pred_name
+            print('Unknown predicate', pred_name)
             raise KeyError
         else:
             del self.p_dict[pred_name]
@@ -206,7 +206,7 @@ class Vocabulary:
     
     def check_arity(self, pred_name, arity):
         if not pred_name in self.p_dict:
-            print 'Unknown predicate', pred_name
+            print('Unknown predicate', pred_name)
             raise KeyError
         else:
             return self.p_dict[pred_name].arity == arity
@@ -215,56 +215,4 @@ class Vocabulary:
         return '<' + repr(self.p_dict) + '>'
 
 current_vocab = Vocabulary()
-
-
-#test examples
-
-class Test:
-    def __init__(self, i):
-        self.i = i
-
-    def __hash__(self):
-        return hash(self.i)
-
-t = Test(1)
-d = {t: 2}
-
-v = Vocabulary()
-v.add('r1', 2)
-print v['r1'].name
-# v['r2']
-print v.check_arity('r1', 2)
-print v.check_arity('r1', 1)
-
-sc = StructCase([(['r1', 'e1', 'e2'], 2.0),
-                 (['r2', 'e1', 'e2'], 3.0)])
-sc2 = copy.copy(sc)
-sc3 = sc.copy()
-print sc3
-print sc3.items
-print sc2.items == sc.items
-print sc3.items == sc.items
-print sc3['(r1 e1 e2)'].predicate == sc['(r1 e1 e2)'].predicate
-
-water_flow = StructCase( \
-    [(['greaterThan', 'bucket_1', 'bucket_2'], 1.0), \
-     (['flow3', 'bucket_1', 'bucket_2', 'tube'], 1.0), \
-     (['greaterThan', 'bucket_2', 'bucket_1'], 1.0), \
-     (['cause', \
-       ['greaterThan', 'bucket_1', 'bucket_2'], \
-       ['flow3', 'bucket_1', 'bucket_2', 'tube']], 1.0), \
-     (['cause', \
-       ['greaterThan', 'bucket_2', 'bucket_1'], \
-       ['flow3', 'bucket_1', 'bucket_2', 'tube']], 1.0)])
-
-heat_flow = StructCase(
-    [(['greaterThan', 'ball_1', 'ball_2'], 2.0), \
-     (['flow3', 'ball_1', 'ball_2', 'stick'], 3.0), \
-     (['cause', \
-       ['greaterThan', 'ball_1', 'ball_2'], \
-       ['flow3', 'ball_1', 'ball_2', 'stick']], 1.0)])
-
-# (['cause', \
-#   ['greaterThan', 'ball_2', 'ball_1'], \
-#   ['flow', 'ball_1', 'ball_2', 'stick']], 1.0)])
 
