@@ -12,6 +12,54 @@ import reader
 from pddl_parser import PDDLParser
 from pddl_to_meld import PDDLToMeld
 
+def calculate_similarity_from_strings(pddl_string1, pddl_string2):
+    """Calculate similarity score between two PDDL domain strings.
+    
+    Args:
+        pddl_string1: First PDDL domain as a string
+        pddl_string2: Second PDDL domain as a string
+        
+    Returns:
+        List of Mapping objects with similarity scores
+    """
+    # Parse PDDL strings
+    try:
+        parser1 = PDDLParser(pddl_string=pddl_string1)
+        parser2 = PDDLParser(pddl_string=pddl_string2)
+    except Exception as e:
+        raise ValueError(f"Error parsing PDDL strings: {e}")
+    
+    # Convert to .meld format (temporary files)
+    converter1 = PDDLToMeld(parser1)
+    converter2 = PDDLToMeld(parser2)
+    
+    temp_meld1 = '.temp_domain1.meld'
+    temp_meld2 = '.temp_domain2.meld'
+    
+    try:
+        converter1.write_meld_file(temp_meld1)
+        converter2.write_meld_file(temp_meld2)
+        
+        # Load into SME
+        name1, facts1 = reader.read_meld_file(temp_meld1)
+        case1 = sc.StructCase(facts1, name1)
+        
+        name2, facts2 = reader.read_meld_file(temp_meld2)
+        case2 = sc.StructCase(facts2, name2)
+        
+        # Run structure mapping
+        sme_engine = sme.SME(case1, case2)
+        global_mappings = sme_engine.match()
+        
+        return global_mappings
+        
+    finally:
+        # Clean up temporary files
+        if os.path.exists(temp_meld1):
+            os.remove(temp_meld1)
+        if os.path.exists(temp_meld2):
+            os.remove(temp_meld2)
+
 def calculate_similarity(pddl_file1, pddl_file2):
     """Calculate similarity score between two PDDL domains."""
     

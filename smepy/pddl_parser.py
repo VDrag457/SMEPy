@@ -1,18 +1,24 @@
 import re
 
 class PDDLParser:
-    """Simple PDDL parser for domain files."""
+    """Simple PDDL parser for domain files or strings."""
     
-    def __init__(self, filepath):
+    def __init__(self, filepath=None, pddl_string=None):
         self.filepath = filepath
+        self.pddl_string = pddl_string
         self.domain_name = None
         self.predicates = []
         self.actions = []
         self.parse()
     
     def parse(self):
-        with open(self.filepath, 'r') as f:
-            content = f.read()
+        if self.pddl_string is not None:
+            content = self.pddl_string
+        elif self.filepath is not None:
+            with open(self.filepath, 'r') as f:
+                content = f.read()
+        else:
+            raise ValueError("Either filepath or pddl_string must be provided")
         
         # Remove comments
         content = re.sub(r';.*', '', content)
