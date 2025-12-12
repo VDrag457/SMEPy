@@ -195,7 +195,7 @@ def match_expression(exp_1, exp_2):
     pred_2 = exp_2.predicate
     args_1 = exp_1.args
     args_2 = exp_2.args
-    pair_list = [(exp_1, exp_2)] + zip(args_1, args_2)
+    pair_list = [(exp_1, exp_2)] + list(zip(args_1, args_2))
     if all([are_matchable(pair[0], pair[1]) for pair in pair_list]):
         match_list = [Match(pair[0], pair[1]) for pair in pair_list]
         return set(match_list)
