@@ -464,6 +464,21 @@ def calculate_similarity(pddl_string1, pddl_string2):
         raise ValueError(f"Error calculating similarity: {e}")
 
 if __name__ == "__main__":
-    blocksworld = "(define (domain blocksworld) (:requirements :strips) (:predicates (on ?x ?y) (ontable ?x) (clear ?x) (handempty) (holding ?x)) (:action pick-up :parameters (?x) :precondition (and (clear ?x) (ontable ?x) (handempty)) :effect (and (not (ontable ?x)) (not (clear ?x)) (not (handempty)) (holding ?x))) (:action put-down :parameters (?x) :precondition (holding ?x) :effect (and (not (holding ?x)) (clear ?x) (handempty) (ontable ?x))))"
-    logistics = "(define (domain logistics) (:requirements :strips) (:predicates (at ?obj ?loc) (in ?pkg ?veh) (vehicle ?v) (package ?p)) (:action load-package :parameters (?pkg ?veh ?loc) :precondition (and (at ?pkg ?loc) (at ?veh ?loc)) :effect (and (not (at ?pkg ?loc)) (in ?pkg ?veh))) (:action unload-package :parameters (?pkg ?veh ?loc) :precondition (and (in ?pkg ?veh) (at ?veh ?loc)) :effect (and (not (in ?pkg ?veh)) (at ?pkg ?loc))))"
-    print(f"Similarity Score: {calculate_similarity(blocksworld, logistics):.4f}")
+    import sys
+    if len(sys.argv) != 3:
+        print("Usage: python pddl_compare.py <pddl_file1> <pddl_file2>")
+        print("Example: python pddl_compare.py domain1.pddl domain2.pddl")
+        sys.exit(1)
+    try:
+        with open(sys.argv[1], 'r') as f1:
+            pddl1 = f1.read()
+        with open(sys.argv[2], 'r') as f2:
+            pddl2 = f2.read()
+        score = calculate_similarity(pddl1, pddl2)
+        print(f"Similarity Score: {score:.4f}")
+    except FileNotFoundError as e:
+        print(f"Error: {e}")
+        sys.exit(1)
+    except Exception as e:
+        print(f"Error calculating similarity: {e}")
+        sys.exit(1)
