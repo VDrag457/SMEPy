@@ -1,0 +1,7 @@
+(in-microtheory solarSystemMt)
+(revolves earth sun)
+(attracts sun earth)
+(mass-greater sun earth)
+(cause (attracts sun earth) (revolves earth sun))
+(spherical sun)
+(spherical earth)
